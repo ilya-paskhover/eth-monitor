@@ -88,19 +88,26 @@ class ETHMonitor:
         ts_baseline: datetime | None,
         now: datetime,
     ) -> str:
-        ts_now = now.strftime("%Y-%m-%d %H:%M:%S")
         direction = "+" if diff >= 0 else ""
-        change_str = f"{direction}{diff:.2f} ({direction}{percent:.2f}%)"
+        message = f"ETH/USD moved {direction}{percent:.2f}%: ${current_price - diff:,.2f} -> ${current_price:,.2f}"
         if ts_baseline:
-            baseline_str = ts_baseline.strftime("%Y-%m-%d %H:%M:%S")
-            return (
-                f"{ts_now} UTC: ETH price changed more than {self._config.threshold}% since {baseline_str}\n"
-                f"New: {current_price:.2f} USD | Change: {change_str}"
-            )
-        return (
-            f"{ts_now} UTC: ETH price alert\n"
-            f"New: {current_price:.2f} USD | Change: {change_str}"
-        )
+            elapsed = self._format_elapsed_phrase(started_at=ts_baseline, now=now)
+            return f"{message} {elapsed}"
+        return message
+
+    @staticmethod
+    def _format_elapsed_phrase(started_at: datetime, now: datetime) -> str:
+        total_minutes = max(0, int((now - started_at).total_seconds() // 60))
+        hours, minutes = divmod(total_minutes, 60)
+        if minutes == 0:
+            hour_label = "hour" if hours == 1 else "hours"
+            return f"in last {hours} {hour_label}"
+        if hours == 0:
+            minute_label = "minute" if minutes == 1 else "minutes"
+            return f"in last {minutes} {minute_label}"
+        hour_label = "hour" if hours == 1 else "hours"
+        minute_label = "minute" if minutes == 1 else "minutes"
+        return f"in last {hours} {hour_label} and {minutes} {minute_label}"
 
     @staticmethod
     def _now() -> datetime:
