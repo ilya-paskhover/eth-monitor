@@ -77,8 +77,7 @@ def test_alert_sent_on_upward_move(_now_mock):
 
     monitor._notifier.send.assert_called_once()
     message = monitor._notifier.send.call_args[0][0]
-    assert "3100.00 USD" in message
-    assert "ETH price changed" in message
+    assert message == "ETH/USD moved +3.33%: $3,000.00 -> $3,100.00 in last 1 hour"
 
 
 @patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
@@ -144,7 +143,7 @@ def test_message_includes_baseline_timestamp(_now_mock):
     monitor.run()
 
     message = monitor._notifier.send.call_args[0][0]
-    assert "2026-03-09 12:00:00" in message
+    assert "in last 1 hour" in message
 
 
 @patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
@@ -154,5 +153,4 @@ def test_message_no_baseline_timestamp(_now_mock):
     monitor.run()
 
     message = monitor._notifier.send.call_args[0][0]
-    assert "3100.00 USD" in message
-    assert "ETH price alert" in message
+    assert message == "ETH/USD moved +3.33%: $3,000.00 -> $3,100.00"
