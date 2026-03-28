@@ -50,7 +50,7 @@ def test_test_calls_send(mocker):
     mocker.patch.object(notifier, "send", return_value=True)
     result = notifier.test()
     assert result is True
-    notifier.send.assert_called_once_with("TEST - ETH/USD moved +9.99%: $9,999.99 -> $9,999.99 in last 9 hours")
+    notifier.send.assert_called_once_with("TEST - ETH/USD moved +2.50%: $9,999.99 -> $9,999.99 in last 9 hours")
 
 
 def test_test_returns_false_when_send_fails(mocker):

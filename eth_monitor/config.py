@@ -5,9 +5,11 @@ from dataclasses import dataclass, field
 from dotenv import load_dotenv
 
 _REQUIRED_VARS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
+# These are fallback values used when no environment variable or .env file entry is present.
+# To override any of these, set the corresponding variable in your .env file — no code change needed.
 _DEFAULTS: dict[str, str] = {
     "COINGECKO_API_URL": "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
-    "THRESHOLD": "1.5",
+    "THRESHOLD": "2.5",
     "BASELINE_FILE": "/tmp/eth_last_price",
     "DEBUG_LOG": "/tmp/eth_monitor_debug.log",
     "MAX_RETRIES": "3",
