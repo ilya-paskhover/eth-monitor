@@ -28,7 +28,8 @@ class TelegramNotifier:
 
     def test(self) -> bool:
         """Send a test notification to confirm Telegram integration is working."""
-        message = "TEST - ETH/USD moved +9.99%: $9,999.99 -> $9,999.99 in last 9 hours"
+        threshold = self._config.threshold
+        message = f"TEST - ETH/USD moved +{threshold:.2f}%: $9,999.99 -> $9,999.99 in last 9 hours"
         result = self.send(message)
         if result:
             self._logger.debug("TEST Telegram alert sent successfully.")

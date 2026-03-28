@@ -13,7 +13,7 @@ def test_defaults_when_no_env(monkeypatch, tmp_path):
 
     cfg = load_config(env_file=str(tmp_path / "nonexistent.env"))
 
-    assert cfg.threshold == 1.5
+    assert cfg.threshold == 2.5
     assert cfg.max_retries == 3
     assert cfg.retry_delay == 2.0
     assert cfg.telegram_bot_token is None
@@ -69,4 +69,4 @@ def test_invalid_threshold_falls_back_to_default(monkeypatch, tmp_path):
 
     cfg = load_config(env_file=str(tmp_path / "nonexistent.env"))
 
-    assert cfg.threshold == 1.5
+    assert cfg.threshold == 2.5
