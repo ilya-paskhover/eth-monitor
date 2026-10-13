@@ -37,7 +37,7 @@ cp .env.example .env
 |-----------------------|-------------------------------------------------|-------------------|-----------------------------------------------------------|
 | `TELEGRAM_BOT_TOKEN`  | none                                            | Yes               | Telegram Bot API token                                    |
 | `TELEGRAM_CHAT_ID`    | none                                            | Yes               | Telegram chat/user ID to send alerts to                   |
-| `PROVIDER`            | `coingecko`                                     | No                | `coingecko` (crypto), `yahoo` or `finnhub` (stocks); see [Price providers](#price-providers) |
+| `PROVIDER`            | auto: `yahoo` for tickers, else `coingecko`     | No                | `coingecko` (crypto), `yahoo` or `finnhub` (stocks); see [Price providers](#price-providers) |
 | `ASSET`               | `ethereum`                                      | No                | CoinGecko coin id (`bitcoin`), Yahoo symbol (`AAPL`, `SAP.DE`, `EURUSD=X`) or Finnhub ticker (`AAPL`) |
 | `QUOTE_CURRENCY`      | `usd`                                           | No                | CoinGecko vs currency (`usd`, `eur`, `btc`); display only for Yahoo and Finnhub (set it to the listing's currency) |
 | `SYMBOL`              | derived from `ASSET` (`ethereum` gives `ETH`)   | No                | Short name used in alerts                                 |
@@ -57,23 +57,57 @@ Examples:
 # Bitcoin in euros
 ASSET=bitcoin QUOTE_CURRENCY=eur python main.py
 
-# Apple stock, no API key
-PROVIDER=yahoo ASSET=AAPL python main.py
+# Apple stock (Yahoo is picked automatically, no API key)
+ASSET=AAPL python main.py
 
 # SAP on Xetra, priced in euros
-PROVIDER=yahoo ASSET=SAP.DE QUOTE_CURRENCY=eur SYMBOL=SAP python main.py
+ASSET=SAP.DE QUOTE_CURRENCY=eur SYMBOL=SAP python main.py
 
 # EUR/USD exchange rate
-PROVIDER=yahoo ASSET=EURUSD=X SYMBOL=EUR QUOTE_CURRENCY=usd THRESHOLD=0.5 python main.py
+ASSET=EURUSD=X SYMBOL=EUR QUOTE_CURRENCY=usd THRESHOLD=0.5 python main.py
 
-# Apple stock via Finnhub (official API, free key)
+# Apple stock via Finnhub instead (official API, free key)
 PROVIDER=finnhub ASSET=AAPL FINNHUB_API_KEY=... python main.py
 ```
 
 To watch several assets, schedule one run per asset with different settings. Each asset
 gets its own baseline file by default, so they never interfere.
 
+### Monitoring a stock (Yahoo, no API key)
+
+Put this in `.env` (Telegram settings as usual):
+
+```bash
+ASSET=AAPL
+THRESHOLD=2.5
+```
+
+Check it once by hand, then schedule it. The first run only records the baseline;
+later runs alert when the price moves `THRESHOLD`% from it:
+
+```bash
+python main.py
+```
+
+For a non-US listing, set `QUOTE_CURRENCY` to the listing's currency so alerts show the
+right sign (the monitor logs a warning if they differ), and optionally a short `SYMBOL`:
+
+```bash
+ASSET=SAP.DE
+QUOTE_CURRENCY=eur
+SYMBOL=SAP
+```
+
+Yahoo symbols: US tickers as-is (`AAPL`, `MSFT`), other exchanges with a suffix
+(`SAP.DE` Xetra, `VOD.L` London, `7203.T` Tokyo), FX as `EURUSD=X`, crypto as `BTC-USD`.
+Look up a symbol on finance.yahoo.com if unsure.
+
 ### Price providers
+
+If `PROVIDER` is not set, it is picked from `ASSET`: a ticker with upper-case letters
+(`AAPL`, `SAP.DE`, `EURUSD=X`) uses **Yahoo**, a lower-case CoinGecko id (`ethereum`,
+`bitcoin`) uses **CoinGecko**. So stocks only need `ASSET`. Write tickers in upper case,
+and set `PROVIDER` explicitly to override (for example `PROVIDER=finnhub`).
 
 | Provider    | Covers                                   | Key           | Notes |
 |-------------|------------------------------------------|---------------|-------|
@@ -112,6 +146,16 @@ python main.py --test
 ```cron
 */5 * * * * /usr/bin/python /path/to/eth-monitor/main.py
 ```
+
+Several assets, each with its own baseline file (the stock only on weekdays; cron uses the
+machine's local time, so add an hour range matching the exchange's session if you want one):
+
+```cron
+*/5 * * * *   cd /path/to/eth-monitor && /usr/bin/python main.py
+*/5 * * * 1-5 cd /path/to/eth-monitor && ASSET=AAPL /usr/bin/python main.py
+```
+
+Run `python main.py --help` for more examples.
 
 ## Project Structure
 

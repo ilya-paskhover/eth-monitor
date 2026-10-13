@@ -12,7 +12,6 @@ _PROVIDER_REQUIRED_VARS: dict[str, tuple[str, ...]] = {
 # These are fallback values used when no environment variable or .env file entry is present.
 # To override any of these, set the corresponding variable in your .env file — no code change needed.
 _DEFAULTS: dict[str, str] = {
-    "PROVIDER": "coingecko",
     "ASSET": "ethereum",
     "QUOTE_CURRENCY": "usd",
     "COINGECKO_API_URL": "https://api.coingecko.com/api/v3/simple/price",
@@ -31,6 +30,15 @@ _KNOWN_SYMBOLS: dict[str, str] = {
 }
 
 
+def default_provider(asset: str) -> str:
+    """Pick a provider when PROVIDER is unset.
+
+    CoinGecko ids are lower-case ("ethereum", "usd-coin"); tickers have upper-case letters
+    ("AAPL", "SAP.DE", "EURUSD=X"), so anything with an upper-case letter goes to Yahoo.
+    """
+    return "yahoo" if any(c.isupper() for c in asset) else "coingecko"
+
+
 def default_symbol(asset: str) -> str:
     return _KNOWN_SYMBOLS.get(asset.lower(), asset.upper())
 
@@ -41,7 +49,7 @@ def default_baseline_file(symbol: str) -> str:
 
 @dataclass
 class Config:
-    provider: str = _DEFAULTS["PROVIDER"]
+    provider: str = "coingecko"
     # CoinGecko coin id (e.g. "ethereum"), Finnhub ticker (e.g. "AAPL") or Yahoo symbol (e.g. "SAP.DE", "EURUSD=X").
     asset: str = _DEFAULTS["ASSET"]
     quote_currency: str = _DEFAULTS["QUOTE_CURRENCY"]
@@ -87,8 +95,8 @@ def load_config(env_file: str = ".env") -> Config:
             logging.warning("Config: %s has non-integer value '%s', using default %s.", key, _get(key), _DEFAULTS.get(key))
             return int(_DEFAULTS.get(key, "0"))
 
-    provider = _get("PROVIDER").strip().lower()
     asset = _get("ASSET").strip()
+    provider = (os.getenv("PROVIDER") or default_provider(asset)).strip().lower()
     symbol = os.getenv("SYMBOL") or default_symbol(asset)
 
     missing: list[str] = []

@@ -117,6 +117,43 @@ def test_explicit_symbol_and_baseline_win(monkeypatch, tmp_path):
     assert cfg.baseline_file == "/var/lib/doge"
 
 
+def test_ticker_asset_defaults_to_yahoo(monkeypatch, tmp_path):
+    """Stocks need no PROVIDER: an upper-case ticker picks Yahoo, which needs no API key."""
+    _clear_asset_env(monkeypatch)
+    monkeypatch.setenv("ASSET", "AAPL")
+
+    cfg = load_config(env_file=str(tmp_path / "nonexistent.env"))
+
+    assert cfg.provider == "yahoo"
+    assert cfg.symbol == "AAPL"
+    assert cfg.baseline_file == "/tmp/aapl_last_price"
+    assert "FINNHUB_API_KEY" not in cfg.missing_vars
+
+
+@pytest.mark.parametrize("asset", ["SAP.DE", "EURUSD=X", "BTC-USD", "7203.T"])
+def test_yahoo_style_symbols_default_to_yahoo(monkeypatch, tmp_path, asset):
+    _clear_asset_env(monkeypatch)
+    monkeypatch.setenv("ASSET", asset)
+
+    assert load_config(env_file=str(tmp_path / "nonexistent.env")).provider == "yahoo"
+
+
+@pytest.mark.parametrize("asset", ["ethereum", "bitcoin", "usd-coin"])
+def test_coingecko_ids_default_to_coingecko(monkeypatch, tmp_path, asset):
+    _clear_asset_env(monkeypatch)
+    monkeypatch.setenv("ASSET", asset)
+
+    assert load_config(env_file=str(tmp_path / "nonexistent.env")).provider == "coingecko"
+
+
+def test_explicit_provider_overrides_detection(monkeypatch, tmp_path):
+    _clear_asset_env(monkeypatch)
+    monkeypatch.setenv("ASSET", "AAPL")
+    monkeypatch.setenv("PROVIDER", "finnhub")
+
+    assert load_config(env_file=str(tmp_path / "nonexistent.env")).provider == "finnhub"
+
+
 def test_finnhub_requires_api_key(monkeypatch, tmp_path):
     _clear_asset_env(monkeypatch)
     monkeypatch.setenv("PROVIDER", "Finnhub")
