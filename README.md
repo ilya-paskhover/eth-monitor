@@ -13,17 +13,36 @@ the price moves more than a configurable threshold from the last alerted price. 
 - Pluggable price providers: CoinGecko (crypto), Yahoo Finance (stocks, FX, no key) and Finnhub (US stocks, free key)
 - Unit tests for every component, all independently mockable
 
-## Requirements
+## Setup
 
-```
-Python 3.10+
-```
-
-Install dependencies:
+Requires **Python 3.10+**. On macOS there is no `python` command, and the built-in `python3`
+is 3.9, which is too old (the code fails on import). Install a newer one, e.g. with Homebrew:
 
 ```bash
+brew install python@3.12
+```
+
+Create a virtual environment in the project folder (`.venv` is git-ignored) and install the
+dependencies into it:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+While the venv is active, `python` means the venv's Python 3.12, so every `python main.py`
+command below works as written. Activate it again in each new terminal with
+`source .venv/bin/activate`, or skip activation and call `.venv/bin/python main.py` directly
+(that is what the cron examples below do).
+
+Common errors:
+
+- `zsh: command not found: python`: the venv is not active. Run `source .venv/bin/activate`.
+- `ModuleNotFoundError: No module named 'dotenv'`: dependencies are not installed for the
+  Python you are running. Activate the venv and run `pip install -r requirements.txt`.
+- `TypeError: unsupported operand type(s) for |`: you are on Python 3.9. Recreate the venv
+  with `python3.12 -m venv .venv`.
 
 ## Configuration
 
@@ -144,15 +163,15 @@ python main.py --test
 **Scheduled execution** (cron example, every 5 minutes):
 
 ```cron
-*/5 * * * * /usr/bin/python /path/to/eth-monitor/main.py
+*/5 * * * * cd /path/to/eth-monitor && .venv/bin/python main.py
 ```
 
 Several assets, each with its own baseline file (the stock only on weekdays; cron uses the
 machine's local time, so add an hour range matching the exchange's session if you want one):
 
 ```cron
-*/5 * * * *   cd /path/to/eth-monitor && /usr/bin/python main.py
-*/5 * * * 1-5 cd /path/to/eth-monitor && ASSET=AAPL /usr/bin/python main.py
+*/5 * * * *   cd /path/to/eth-monitor && .venv/bin/python main.py
+*/5 * * * 1-5 cd /path/to/eth-monitor && ASSET=AAPL .venv/bin/python main.py
 ```
 
 Run `python main.py --help` for more examples.
