@@ -1,6 +1,6 @@
 # eth-monitor
 
-Monitors a crypto price (CoinGecko) or stock price (Finnhub) and sends a Telegram alert when
+Monitors a crypto price (CoinGecko) or a stock / FX price (Yahoo Finance or Finnhub) and sends a Telegram alert when
 the price moves more than a configurable threshold from the last alerted price. Defaults to ETH/USD.
 
 ## Features
@@ -10,7 +10,7 @@ the price moves more than a configurable threshold from the last alerted price. 
 - Graceful handling of missing Telegram credentials (warns, does not crash)
 - All settings configurable via `.env` or environment variables
 - `--test` flag to verify Telegram integration before deploying
-- Pluggable price providers: CoinGecko (crypto, any quote currency) and Finnhub (stocks)
+- Pluggable price providers: CoinGecko (crypto), Yahoo Finance (stocks, FX, no key) and Finnhub (US stocks, free key)
 - Unit tests for every component, all independently mockable
 
 ## Requirements
@@ -37,9 +37,9 @@ cp .env.example .env
 |-----------------------|-------------------------------------------------|-------------------|-----------------------------------------------------------|
 | `TELEGRAM_BOT_TOKEN`  | none                                            | Yes               | Telegram Bot API token                                    |
 | `TELEGRAM_CHAT_ID`    | none                                            | Yes               | Telegram chat/user ID to send alerts to                   |
-| `PROVIDER`            | `coingecko`                                     | No                | `coingecko` (crypto) or `finnhub` (stocks)                |
-| `ASSET`               | `ethereum`                                      | No                | CoinGecko coin id (`bitcoin`, `solana`) or stock ticker (`AAPL`) |
-| `QUOTE_CURRENCY`      | `usd`                                           | No                | CoinGecko vs currency (`usd`, `eur`, `btc`); display only for Finnhub |
+| `PROVIDER`            | `coingecko`                                     | No                | `coingecko` (crypto), `yahoo` or `finnhub` (stocks); see [Price providers](#price-providers) |
+| `ASSET`               | `ethereum`                                      | No                | CoinGecko coin id (`bitcoin`), Yahoo symbol (`AAPL`, `SAP.DE`, `EURUSD=X`) or Finnhub ticker (`AAPL`) |
+| `QUOTE_CURRENCY`      | `usd`                                           | No                | CoinGecko vs currency (`usd`, `eur`, `btc`); display only for Yahoo and Finnhub (set it to the listing's currency) |
 | `SYMBOL`              | derived from `ASSET` (`ethereum` gives `ETH`)   | No                | Short name used in alerts                                 |
 | `FINNHUB_API_KEY`     | none                                            | With `finnhub`    | Free key from https://finnhub.io                          |
 | `THRESHOLD`           | `2.5`                                           | No                | % change from baseline that triggers alert                |
@@ -49,6 +49,7 @@ cp .env.example .env
 | `RETRY_DELAY`         | `2`                                             | No                | Seconds between retry attempts                            |
 | `COINGECKO_API_URL`   | `https://api.coingecko.com/api/v3/simple/price` | No                | CoinGecko endpoint (asset and currency are added as query params) |
 | `FINNHUB_API_URL`     | `https://finnhub.io/api/v1/quote`               | No                | Finnhub quote endpoint                                    |
+| `YAHOO_API_URL`       | `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}` | No   | Yahoo chart endpoint (`{symbol}` is replaced by `ASSET`)   |
 
 Examples:
 
@@ -56,12 +57,38 @@ Examples:
 # Bitcoin in euros
 ASSET=bitcoin QUOTE_CURRENCY=eur python main.py
 
-# Apple stock
+# Apple stock, no API key
+PROVIDER=yahoo ASSET=AAPL python main.py
+
+# SAP on Xetra, priced in euros
+PROVIDER=yahoo ASSET=SAP.DE QUOTE_CURRENCY=eur SYMBOL=SAP python main.py
+
+# EUR/USD exchange rate
+PROVIDER=yahoo ASSET=EURUSD=X SYMBOL=EUR QUOTE_CURRENCY=usd THRESHOLD=0.5 python main.py
+
+# Apple stock via Finnhub (official API, free key)
 PROVIDER=finnhub ASSET=AAPL FINNHUB_API_KEY=... python main.py
 ```
 
 To watch several assets, schedule one run per asset with different settings. Each asset
 gets its own baseline file by default, so they never interfere.
+
+### Price providers
+
+| Provider    | Covers                                   | Key           | Notes |
+|-------------|------------------------------------------|---------------|-------|
+| `coingecko` | Crypto in any CoinGecko vs currency      | No            | Default. Official public API with rate limits. |
+| `yahoo`     | Stocks worldwide, FX (`EURUSD=X`), crypto (`BTC-USD`) | No | **Unofficial** endpoint. It can change, rate-limit or start requiring cookies without notice, and Yahoo's terms allow personal use only. |
+| `finnhub`   | US stocks                                | Yes, free     | Official, documented API. Use it if Yahoo breaks or for anything beyond personal use. |
+
+**Using Finnhub**
+
+1. Sign up at https://finnhub.io/register and copy the API key from the dashboard.
+2. Set `PROVIDER=finnhub`, `ASSET=<ticker>` and `FINNHUB_API_KEY=<key>` in `.env`.
+3. The free tier has a per-minute call limit that is far above what a cron job every few minutes
+   needs; check https://finnhub.io/pricing for current limits and which exchanges are included.
+4. The key is sent in the `X-Finnhub-Token` header, so it never appears in logged URLs.
+5. Unknown tickers come back as all zeros; the monitor treats that as a fetch error, not a price of 0.
 
 Missing required variables emit a `WARNING` log — the script continues running but
 Telegram notifications will be skipped.
@@ -93,7 +120,7 @@ eth-monitor/
 ├── eth_monitor/
 │   ├── config.py          # Settings dataclass, loaded from .env
 │   ├── logger.py          # Logging setup (rotating file + stderr)
-│   ├── price_fetcher.py   # Provider clients (CoinGecko, Finnhub) with retries
+│   ├── price_fetcher.py   # Provider clients (CoinGecko, Yahoo, Finnhub) with retries
 │   ├── formatting.py      # Pair and currency formatting for alerts
 │   ├── baseline.py        # Atomic read/write of baseline file
 │   ├── notifier.py        # Telegram alert sender
