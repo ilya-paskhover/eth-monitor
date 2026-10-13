@@ -4,18 +4,18 @@ import sys
 from eth_monitor.baseline import BaselineStore
 from eth_monitor.config import load_config
 from eth_monitor.logger import setup_logger
-from eth_monitor.monitor import ETHMonitor
+from eth_monitor.monitor import PriceMonitor
 from eth_monitor.notifier import TelegramNotifier
-from eth_monitor.price_fetcher import PriceFetcher
+from eth_monitor.price_fetcher import create_fetcher
 
 
-def build_monitor() -> ETHMonitor:
+def build_monitor() -> PriceMonitor:
     config = load_config()
     logger = setup_logger(log_file=config.debug_log)
-    fetcher = PriceFetcher(config=config, logger=logger)
+    fetcher = create_fetcher(config=config, logger=logger)
     baseline_store = BaselineStore(path=config.baseline_file, logger=logger)
     notifier = TelegramNotifier(config=config, logger=logger)
-    return ETHMonitor(
+    return PriceMonitor(
         config=config,
         fetcher=fetcher,
         baseline_store=baseline_store,
@@ -26,7 +26,7 @@ def build_monitor() -> ETHMonitor:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="ETH/USD price monitor — checks CoinGecko and sends Telegram alerts on significant moves."
+        description="Crypto/stock price monitor — checks CoinGecko or Finnhub and sends Telegram alerts on significant moves."
     )
     parser.add_argument(
         "--test",
