@@ -6,7 +6,7 @@ import pytest
 
 from eth_monitor.baseline import BaselineStore
 from eth_monitor.config import Config
-from eth_monitor.monitor import ETHMonitor
+from eth_monitor.monitor import PriceMonitor
 from eth_monitor.notifier import TelegramNotifier
 from eth_monitor.price_fetcher import PriceFetchError, PriceFetcher
 
@@ -24,7 +24,7 @@ def _make_monitor(
     fetch_error: bool = False,
     notify_result: bool = True,
     missing_vars: list[str] | None = None,
-) -> ETHMonitor:
+) -> PriceMonitor:
     config = Config(threshold=threshold, missing_vars=missing_vars or [])
 
     fetcher = MagicMock(spec=PriceFetcher)
@@ -40,7 +40,7 @@ def _make_monitor(
     notifier = MagicMock(spec=TelegramNotifier)
     notifier.send.return_value = notify_result
 
-    return ETHMonitor(
+    return PriceMonitor(
         config=config,
         fetcher=fetcher,
         baseline_store=baseline,
@@ -49,7 +49,7 @@ def _make_monitor(
     )
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_first_run_initializes_baseline(_now_mock):
     """On first run (no baseline), saves price without sending alert."""
     monitor = _make_monitor(last_price=None, last_ts=None, current_price=3000.0)
@@ -59,7 +59,7 @@ def test_first_run_initializes_baseline(_now_mock):
     monitor._notifier.send.assert_not_called()
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_no_alert_within_threshold(_now_mock):
     """No alert when price change is below threshold."""
     monitor = _make_monitor(last_price=3000.0, current_price=3040.0, threshold=1.5)
@@ -69,7 +69,7 @@ def test_no_alert_within_threshold(_now_mock):
     monitor._baseline.save.assert_not_called()
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_alert_sent_on_upward_move(_now_mock):
     """Alert sent when price rises beyond threshold."""
     monitor = _make_monitor(last_price=3000.0, current_price=3100.0, threshold=1.5)
@@ -80,7 +80,7 @@ def test_alert_sent_on_upward_move(_now_mock):
     assert message == "ETH/USD moved +3.33%: $3,000.00 -> $3,100.00 in last 1 hour"
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_alert_sent_on_downward_move(_now_mock):
     """Alert sent when price drops beyond threshold."""
     monitor = _make_monitor(last_price=3000.0, current_price=2900.0, threshold=1.5)
@@ -89,7 +89,7 @@ def test_alert_sent_on_downward_move(_now_mock):
     monitor._notifier.send.assert_called_once()
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_baseline_updated_after_successful_alert(_now_mock):
     """Baseline is updated only when alert is successfully sent."""
     monitor = _make_monitor(last_price=3000.0, current_price=3100.0, notify_result=True)
@@ -98,7 +98,7 @@ def test_baseline_updated_after_successful_alert(_now_mock):
     monitor._baseline.save.assert_called_once_with(3100.0, _NOW)
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_baseline_not_updated_when_alert_fails(_now_mock):
     """Baseline is NOT updated if the Telegram alert fails."""
     monitor = _make_monitor(last_price=3000.0, current_price=3100.0, notify_result=False)
@@ -136,7 +136,7 @@ def test_test_delegates_to_notifier():
     monitor._notifier.test.assert_called_once()
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_message_includes_baseline_timestamp(_now_mock):
     """Alert message includes the baseline timestamp when available."""
     monitor = _make_monitor(last_price=3000.0, last_ts=_TS, current_price=3100.0)
@@ -146,7 +146,7 @@ def test_message_includes_baseline_timestamp(_now_mock):
     assert "in last 1 hour" in message
 
 
-@patch("eth_monitor.monitor.ETHMonitor._now", return_value=_NOW)
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
 def test_message_no_baseline_timestamp(_now_mock):
     """Alert message works without a baseline timestamp."""
     monitor = _make_monitor(last_price=3000.0, last_ts=None, current_price=3100.0)
@@ -154,3 +154,26 @@ def test_message_no_baseline_timestamp(_now_mock):
 
     message = monitor._notifier.send.call_args[0][0]
     assert message == "ETH/USD moved +3.33%: $3,000.00 -> $3,100.00"
+
+
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
+def test_message_uses_configured_symbol_and_currency(_now_mock):
+    """Alert message reflects SYMBOL and QUOTE_CURRENCY (code suffix for currencies without a sign)."""
+    monitor = _make_monitor(last_price=200.0, last_ts=None, current_price=210.0)
+    monitor._config.symbol = "AAPL"
+    monitor._config.quote_currency = "chf"
+    monitor.run()
+
+    message = monitor._notifier.send.call_args[0][0]
+    assert message == "AAPL/CHF moved +5.00%: 200.00 CHF -> 210.00 CHF"
+
+
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
+def test_message_uses_currency_sign(_now_mock):
+    monitor = _make_monitor(last_price=50000.0, last_ts=None, current_price=52000.0)
+    monitor._config.symbol = "BTC"
+    monitor._config.quote_currency = "eur"
+    monitor.run()
+
+    message = monitor._notifier.send.call_args[0][0]
+    assert message == "BTC/EUR moved +4.00%: €50,000.00 -> €52,000.00"
