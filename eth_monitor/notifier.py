@@ -3,6 +3,7 @@ import logging
 import requests
 
 from .config import Config
+from .formatting import format_money, format_pair
 
 _TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 _TIMEOUT = (10, 20)
@@ -29,7 +30,8 @@ class TelegramNotifier:
     def test(self) -> bool:
         """Send a test notification to confirm Telegram integration is working."""
         threshold = self._config.threshold
-        message = f"TEST - ETH/USD moved +{threshold:.2f}%: $9,999.99 -> $9,999.99 in last 9 hours"
+        sample = format_money(9999.99, self._config.quote_currency)
+        message = f"TEST - {format_pair(self._config)} moved +{threshold:.2f}%: {sample} -> {sample} in last 9 hours"
         result = self.send(message)
         if result:
             self._logger.debug("TEST Telegram alert sent successfully.")

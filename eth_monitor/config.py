@@ -5,23 +5,52 @@ from dataclasses import dataclass, field
 from dotenv import load_dotenv
 
 _REQUIRED_VARS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
+# Extra variables required only by a specific price provider.
+_PROVIDER_REQUIRED_VARS: dict[str, tuple[str, ...]] = {
+    "finnhub": ("FINNHUB_API_KEY",),
+}
 # These are fallback values used when no environment variable or .env file entry is present.
 # To override any of these, set the corresponding variable in your .env file — no code change needed.
 _DEFAULTS: dict[str, str] = {
-    "COINGECKO_API_URL": "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
+    "PROVIDER": "coingecko",
+    "ASSET": "ethereum",
+    "QUOTE_CURRENCY": "usd",
+    "COINGECKO_API_URL": "https://api.coingecko.com/api/v3/simple/price",
+    "FINNHUB_API_URL": "https://finnhub.io/api/v1/quote",
     "THRESHOLD": "2.5",
-    "BASELINE_FILE": "/tmp/eth_last_price",
     "DEBUG_LOG": "/tmp/eth_monitor_debug.log",
     "MAX_RETRIES": "3",
     "RETRY_DELAY": "2",
 }
+# Display symbols for common CoinGecko ids; anything else falls back to ASSET upper-cased.
+_KNOWN_SYMBOLS: dict[str, str] = {
+    "ethereum": "ETH",
+    "bitcoin": "BTC",
+    "solana": "SOL",
+}
+
+
+def default_symbol(asset: str) -> str:
+    return _KNOWN_SYMBOLS.get(asset.lower(), asset.upper())
+
+
+def default_baseline_file(symbol: str) -> str:
+    return f"/tmp/{symbol.lower()}_last_price"
 
 
 @dataclass
 class Config:
+    provider: str = _DEFAULTS["PROVIDER"]
+    # CoinGecko coin id (e.g. "ethereum", "bitcoin") or stock ticker for Finnhub (e.g. "AAPL").
+    asset: str = _DEFAULTS["ASSET"]
+    quote_currency: str = _DEFAULTS["QUOTE_CURRENCY"]
+    # Short name shown in alerts and used for the default baseline file name.
+    symbol: str = default_symbol(_DEFAULTS["ASSET"])
     coingecko_api_url: str = _DEFAULTS["COINGECKO_API_URL"]
+    finnhub_api_url: str = _DEFAULTS["FINNHUB_API_URL"]
+    finnhub_api_key: str | None = field(default=None, repr=False)
     threshold: float = float(_DEFAULTS["THRESHOLD"])
-    baseline_file: str = _DEFAULTS["BASELINE_FILE"]
+    baseline_file: str = default_baseline_file(default_symbol(_DEFAULTS["ASSET"]))
     debug_log: str = _DEFAULTS["DEBUG_LOG"]
     max_retries: int = int(_DEFAULTS["MAX_RETRIES"])
     retry_delay: float = float(_DEFAULTS["RETRY_DELAY"])
@@ -34,15 +63,10 @@ class Config:
 def load_config(env_file: str = ".env") -> Config:
     """Load configuration from environment variables, optionally from an .env file.
 
-    Warns (does not raise) if required Telegram variables are missing.
+    Warns (does not raise) if required Telegram or provider variables are missing.
     Unknown or extra variables are silently ignored.
     """
     load_dotenv(dotenv_path=env_file, override=False)
-
-    missing: list[str] = []
-    for var in _REQUIRED_VARS:
-        if not os.getenv(var):
-            missing.append(var)
 
     def _get(key: str) -> str:
         return os.getenv(key, _DEFAULTS.get(key, ""))
@@ -61,10 +85,25 @@ def load_config(env_file: str = ".env") -> Config:
             logging.warning("Config: %s has non-integer value '%s', using default %s.", key, _get(key), _DEFAULTS.get(key))
             return int(_DEFAULTS.get(key, "0"))
 
+    provider = _get("PROVIDER").strip().lower()
+    asset = _get("ASSET").strip()
+    symbol = os.getenv("SYMBOL") or default_symbol(asset)
+
+    missing: list[str] = []
+    for var in _REQUIRED_VARS + _PROVIDER_REQUIRED_VARS.get(provider, ()):
+        if not os.getenv(var):
+            missing.append(var)
+
     return Config(
+        provider=provider,
+        asset=asset,
+        quote_currency=_get("QUOTE_CURRENCY").strip().lower(),
+        symbol=symbol,
         coingecko_api_url=_get("COINGECKO_API_URL"),
+        finnhub_api_url=_get("FINNHUB_API_URL"),
+        finnhub_api_key=os.getenv("FINNHUB_API_KEY") or None,
         threshold=_float("THRESHOLD"),
-        baseline_file=_get("BASELINE_FILE"),
+        baseline_file=os.getenv("BASELINE_FILE") or default_baseline_file(symbol),
         debug_log=_get("DEBUG_LOG"),
         max_retries=_int("MAX_RETRIES"),
         retry_delay=_float("RETRY_DELAY"),

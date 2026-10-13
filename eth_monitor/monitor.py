@@ -3,17 +3,18 @@ from datetime import datetime, timezone
 
 from .baseline import BaselineStore
 from .config import Config
+from .formatting import format_money, format_pair
 from .notifier import TelegramNotifier
 from .price_fetcher import PriceFetchError, PriceFetcher
 
 
-class ETHMonitor:
-    """Orchestrates the ETH price monitoring workflow.
+class PriceMonitor:
+    """Orchestrates the price monitoring workflow for the configured asset.
 
     Workflow for run():
         1. Emit warnings for any missing required config vars.
         2. Load the stored baseline price and timestamp.
-        3. Fetch the current ETH/USD price (with retries).
+        3. Fetch the current price (with retries).
         4. On first run (no baseline): save price as new baseline, exit quietly.
         5. Calculate percentage change from baseline.
         6. If change exceeds threshold: send Telegram alert, update baseline.
@@ -34,7 +35,7 @@ class ETHMonitor:
         self._logger = logger
 
     def run(self) -> None:
-        self._logger.debug("=== Starting ETH monitor ===")
+        self._logger.debug("=== Starting %s monitor ===", format_pair(self._config))
         self._warn_missing_config()
 
         last_price, ts_baseline = self._baseline.load()
@@ -55,7 +56,7 @@ class ETHMonitor:
 
         diff = current_price - last_price
         percent = (diff / last_price) * 100
-        self._logger.debug("Price change: %.2f USD (%.2f%%)", diff, percent)
+        self._logger.debug("Price change: %.2f %s (%.2f%%)", diff, self._config.quote_currency.upper(), percent)
 
         if abs(percent) >= self._config.threshold:
             self._logger.debug("Threshold exceeded (%.2f%% >= %.2f%%). Sending alert.", abs(percent), self._config.threshold)
@@ -69,7 +70,7 @@ class ETHMonitor:
         else:
             self._logger.debug("Price change within threshold (%.2f%%). No alert sent.", self._config.threshold)
 
-        self._logger.debug("=== ETH monitor finished ===")
+        self._logger.debug("=== %s monitor finished ===", format_pair(self._config))
 
     def test(self) -> None:
         """Send a test Telegram notification."""
@@ -89,7 +90,11 @@ class ETHMonitor:
         now: datetime,
     ) -> str:
         direction = "+" if diff >= 0 else ""
-        message = f"ETH/USD moved {direction}{percent:.2f}%: ${current_price - diff:,.2f} -> ${current_price:,.2f}"
+        currency = self._config.quote_currency
+        message = (
+            f"{format_pair(self._config)} moved {direction}{percent:.2f}%: "
+            f"{format_money(current_price - diff, currency)} -> {format_money(current_price, currency)}"
+        )
         if ts_baseline:
             elapsed = self._format_elapsed_phrase(started_at=ts_baseline, now=now)
             return f"{message} {elapsed}"

@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 class BaselineStore:
-    """Persists the last alerted ETH price and timestamp to a flat file.
+    """Persists the last alerted price and timestamp to a flat file.
 
     File format (two lines):
         <price as float>

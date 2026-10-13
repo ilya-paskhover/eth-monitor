@@ -57,3 +57,11 @@ def test_test_returns_false_when_send_fails(mocker):
     notifier = _notifier()
     mocker.patch.object(notifier, "send", return_value=False)
     assert notifier.test() is False
+
+
+def test_test_message_uses_configured_pair(mocker):
+    cfg = Config(telegram_bot_token="tok", telegram_chat_id="123", symbol="AAPL", quote_currency="usd")
+    notifier = TelegramNotifier(config=cfg, logger=_LOGGER)
+    mocker.patch.object(notifier, "send", return_value=True)
+    notifier.test()
+    notifier.send.assert_called_once_with("TEST - AAPL/USD moved +2.50%: $9,999.99 -> $9,999.99 in last 9 hours")
