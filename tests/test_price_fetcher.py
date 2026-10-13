@@ -10,6 +10,7 @@ from eth_monitor.price_fetcher import (
     FinnhubFetcher,
     PriceFetchError,
     PriceFetcher,
+    YahooFetcher,
     create_fetcher,
 )
 
@@ -110,8 +111,45 @@ def test_finnhub_unknown_symbol_raises(mocker):
 def test_create_fetcher_selects_provider():
     assert isinstance(create_fetcher(Config(provider="coingecko"), _LOGGER), CoinGeckoFetcher)
     assert isinstance(create_fetcher(Config(provider="finnhub"), _LOGGER), FinnhubFetcher)
+    assert isinstance(create_fetcher(Config(provider="yahoo"), _LOGGER), YahooFetcher)
 
 
 def test_create_fetcher_rejects_unknown_provider():
     with pytest.raises(ValueError, match="Unknown PROVIDER"):
         create_fetcher(Config(provider="nasdaq"), _LOGGER)
+
+
+def _yahoo(asset: str = "AAPL", quote_currency: str = "usd") -> PriceFetcher:
+    cfg = Config(provider="yahoo", asset=asset, symbol=asset, quote_currency=quote_currency, max_retries=1, retry_delay=0)
+    return YahooFetcher(config=cfg, logger=_LOGGER)
+
+
+def _yahoo_body(price: float, currency: str = "USD") -> dict:
+    return {"chart": {"result": [{"meta": {"currency": currency, "regularMarketPrice": price}}], "error": None}}
+
+
+def test_yahoo_returns_price(mocker):
+    fetcher = _yahoo()
+    get = mocker.patch("requests.get", return_value=_mock_response(mocker, _yahoo_body(341.27)))
+
+    assert fetcher.fetch() == 341.27
+    assert get.call_args.args[0] == "https://query1.finance.yahoo.com/v8/finance/chart/AAPL"
+    assert "User-Agent" in get.call_args.kwargs["headers"]
+
+
+def test_yahoo_unknown_symbol_raises(mocker):
+    fetcher = _yahoo(asset="NOPE")
+    body = {"chart": {"result": None, "error": {"code": "Not Found", "description": "No data found"}}}
+    mocker.patch("requests.get", return_value=_mock_response(mocker, body))
+
+    with pytest.raises(PriceFetchError):
+        fetcher.fetch()
+
+
+def test_yahoo_warns_on_currency_mismatch(mocker, caplog):
+    fetcher = _yahoo(asset="SAP.DE", quote_currency="usd")
+    mocker.patch("requests.get", return_value=_mock_response(mocker, _yahoo_body(180.0, currency="EUR")))
+
+    with caplog.at_level("WARNING", logger="test_price_fetcher"):
+        assert fetcher.fetch() == 180.0
+    assert "quoted in EUR" in caplog.text

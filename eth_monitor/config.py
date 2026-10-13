@@ -17,6 +17,7 @@ _DEFAULTS: dict[str, str] = {
     "QUOTE_CURRENCY": "usd",
     "COINGECKO_API_URL": "https://api.coingecko.com/api/v3/simple/price",
     "FINNHUB_API_URL": "https://finnhub.io/api/v1/quote",
+    "YAHOO_API_URL": "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
     "THRESHOLD": "2.5",
     "DEBUG_LOG": "/tmp/eth_monitor_debug.log",
     "MAX_RETRIES": "3",
@@ -41,7 +42,7 @@ def default_baseline_file(symbol: str) -> str:
 @dataclass
 class Config:
     provider: str = _DEFAULTS["PROVIDER"]
-    # CoinGecko coin id (e.g. "ethereum", "bitcoin") or stock ticker for Finnhub (e.g. "AAPL").
+    # CoinGecko coin id (e.g. "ethereum"), Finnhub ticker (e.g. "AAPL") or Yahoo symbol (e.g. "SAP.DE", "EURUSD=X").
     asset: str = _DEFAULTS["ASSET"]
     quote_currency: str = _DEFAULTS["QUOTE_CURRENCY"]
     # Short name shown in alerts and used for the default baseline file name.
@@ -49,6 +50,7 @@ class Config:
     coingecko_api_url: str = _DEFAULTS["COINGECKO_API_URL"]
     finnhub_api_url: str = _DEFAULTS["FINNHUB_API_URL"]
     finnhub_api_key: str | None = field(default=None, repr=False)
+    yahoo_api_url: str = _DEFAULTS["YAHOO_API_URL"]
     threshold: float = float(_DEFAULTS["THRESHOLD"])
     baseline_file: str = default_baseline_file(default_symbol(_DEFAULTS["ASSET"]))
     debug_log: str = _DEFAULTS["DEBUG_LOG"]
@@ -102,6 +104,7 @@ def load_config(env_file: str = ".env") -> Config:
         coingecko_api_url=_get("COINGECKO_API_URL"),
         finnhub_api_url=_get("FINNHUB_API_URL"),
         finnhub_api_key=os.getenv("FINNHUB_API_KEY") or None,
+        yahoo_api_url=_get("YAHOO_API_URL"),
         threshold=_float("THRESHOLD"),
         baseline_file=os.getenv("BASELINE_FILE") or default_baseline_file(symbol),
         debug_log=_get("DEBUG_LOG"),

@@ -105,9 +105,38 @@ class FinnhubFetcher(PriceFetcher):
         return price
 
 
+class YahooFetcher(PriceFetcher):
+    """Stocks, FX and crypto from Yahoo Finance's chart endpoint (ASSET = Yahoo symbol, e.g. "AAPL", "EURUSD=X").
+
+    No API key needed, but the endpoint is unofficial and may change or rate-limit without notice.
+    """
+
+    # Yahoo answers requests without a browser-like User-Agent with HTTP 429.
+    _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; eth-monitor)"}
+
+    def _request(self) -> requests.Response:
+        return requests.get(
+            self._config.yahoo_api_url.format(symbol=self._config.asset),
+            params={"range": "1d", "interval": "1d"},
+            headers=self._HEADERS,
+            timeout=self._timeout,
+        )
+
+    def _parse_price(self, data: dict) -> float:
+        meta = data["chart"]["result"][0]["meta"]
+        currency = meta.get("currency")
+        if currency and currency.lower() != self._config.quote_currency:
+            self._logger.warning(
+                "%s is quoted in %s but QUOTE_CURRENCY is %s; alerts will show the wrong currency.",
+                self._config.asset, currency, self._config.quote_currency.upper(),
+            )
+        return float(meta["regularMarketPrice"])
+
+
 _FETCHERS: dict[str, type[PriceFetcher]] = {
     "coingecko": CoinGeckoFetcher,
     "finnhub": FinnhubFetcher,
+    "yahoo": YahooFetcher,
 }
 
 

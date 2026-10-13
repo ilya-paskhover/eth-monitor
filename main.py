@@ -26,7 +26,7 @@ def build_monitor() -> PriceMonitor:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Crypto/stock price monitor — checks CoinGecko or Finnhub and sends Telegram alerts on significant moves."
+        description="Crypto/stock price monitor — checks CoinGecko, Yahoo Finance or Finnhub and sends Telegram alerts on significant moves."
     )
     parser.add_argument(
         "--test",
