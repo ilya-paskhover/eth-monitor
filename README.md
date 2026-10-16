@@ -52,23 +52,23 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
-| Variable              | Default                                         | Required          | Description                                               |
-|-----------------------|-------------------------------------------------|-------------------|-----------------------------------------------------------|
-| `TELEGRAM_BOT_TOKEN`  | none                                            | Yes               | Telegram Bot API token                                    |
-| `TELEGRAM_CHAT_ID`    | none                                            | Yes               | Telegram chat/user ID to send alerts to                   |
-| `PROVIDER`            | auto: `yahoo` for tickers, else `coingecko`     | No                | `coingecko` (crypto), `yahoo` or `finnhub` (stocks); see [Price providers](#price-providers) |
-| `ASSET`               | `ethereum`                                      | No                | CoinGecko coin id (`bitcoin`), Yahoo symbol (`AAPL`, `SAP.DE`, `EURUSD=X`) or Finnhub ticker (`AAPL`) |
-| `QUOTE_CURRENCY`      | `usd`                                           | No                | CoinGecko vs currency (`usd`, `eur`, `btc`); display only for Yahoo and Finnhub (set it to the listing's currency) |
-| `SYMBOL`              | derived from `ASSET` (`ethereum` gives `ETH`)   | No                | Short name used in alerts                                 |
-| `FINNHUB_API_KEY`     | none                                            | With `finnhub`    | Free key from https://finnhub.io                          |
-| `THRESHOLD`           | `2.5`                                           | No                | % change from baseline that triggers alert                |
-| `BASELINE_FILE`       | `/tmp/<symbol>_last_price`                      | No                | Path to the baseline persistence file                     |
-| `DEBUG_LOG`           | `/tmp/eth_monitor_debug.log`                    | No                | Path to the rotating debug log file                       |
-| `MAX_RETRIES`         | `3`                                             | No                | Max price-fetch attempts before giving up                 |
-| `RETRY_DELAY`         | `2`                                             | No                | Seconds between retry attempts                            |
-| `COINGECKO_API_URL`   | `https://api.coingecko.com/api/v3/simple/price` | No                | CoinGecko endpoint (asset and currency are added as query params) |
-| `FINNHUB_API_URL`     | `https://finnhub.io/api/v1/quote`               | No                | Finnhub quote endpoint                                    |
-| `YAHOO_API_URL`       | `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}` | No   | Yahoo chart endpoint (`{symbol}` is replaced by `ASSET`)   |
+| Variable             | Required       | Description                                                                                                        | Default                                                      |
+| -------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `TELEGRAM_BOT_TOKEN` | Yes            | Telegram Bot API token                                                                                             | none                                                         |
+| `TELEGRAM_CHAT_ID`   | Yes            | Telegram chat/user ID to send alerts to                                                                            | none                                                         |
+| `PROVIDER`           | No             | `coingecko` (crypto), `yahoo` or `finnhub` (stocks); see [Price providers](#price-providers)                       | auto: `yahoo` for tickers, else `coingecko`                  |
+| `ASSET`              | No             | CoinGecko coin id (`bitcoin`), Yahoo symbol (`AAPL`, `SAP.DE`, `EURUSD=X`) or Finnhub ticker (`AAPL`)              | `ethereum`                                                   |
+| `QUOTE_CURRENCY`     | No             | CoinGecko vs currency (`usd`, `eur`, `btc`); display only for Yahoo and Finnhub (set it to the listing's currency) | `usd`                                                        |
+| `SYMBOL`             | No             | Short name used in alerts                                                                                          | derived from `ASSET` (`ethereum` gives `ETH`)                |
+| `FINNHUB_API_KEY`    | With `finnhub` | Free key from https://finnhub.io                                                                                   | none                                                         |
+| `THRESHOLD`          | No             | % change from baseline that triggers alert                                                                         | `2.5`                                                        |
+| `BASELINE_FILE`      | No             | Path to the baseline persistence file                                                                              | `/tmp/<symbol>_last_price`                                   |
+| `DEBUG_LOG`          | No             | Path to the rotating debug log file                                                                                | `/tmp/eth_monitor_debug.log`                                 |
+| `MAX_RETRIES`        | No             | Max price-fetch attempts before giving up                                                                          | `3`                                                          |
+| `RETRY_DELAY`        | No             | Seconds between retry attempts                                                                                     | `2`                                                          |
+| `COINGECKO_API_URL`  | No             | CoinGecko endpoint (asset and currency are added as query params)                                                  | `https://api.coingecko.com/api/v3/simple/price`              |
+| `FINNHUB_API_URL`    | No             | Finnhub quote endpoint                                                                                             | `https://finnhub.io/api/v1/quote`                            |
+| `YAHOO_API_URL`      | No             | Yahoo chart endpoint (`{symbol}` is replaced by `ASSET`)                                                           | `https://query1.finance.yahoo.com/v8/finance/chart/{symbol}` |
 
 Examples:
 
