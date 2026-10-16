@@ -65,3 +65,23 @@ def test_test_message_uses_configured_pair(mocker):
     mocker.patch.object(notifier, "send", return_value=True)
     notifier.test()
     notifier.send.assert_called_once_with("TEST - AAPL/USD moved +2.50%: $9,999.99 -> $9,999.99 in last 9 hours")
+
+
+def test_send_does_not_log_token(mocker, caplog):
+    """requests puts the URL (with the bot token) in its error text; it must not reach the log."""
+    notifier = _notifier(token="SECRET123")
+    mocker.patch(
+        "requests.post",
+        side_effect=requests.exceptions.ConnectionError("Max retries exceeded with url: /botSECRET123/sendMessage"),
+    )
+    with caplog.at_level(logging.ERROR, logger="test_notifier"):
+        assert notifier.send("hello") is False
+    assert "SECRET123" not in caplog.text
+
+
+def test_send_uses_plain_text(mocker):
+    """No parse_mode: a "_" or "*" in SYMBOL would make Telegram reject the message."""
+    notifier = _notifier()
+    post = mocker.patch("requests.post")
+    notifier.send("MY_ETH/USD moved +3.00%")
+    assert "parse_mode" not in post.call_args.kwargs["data"]

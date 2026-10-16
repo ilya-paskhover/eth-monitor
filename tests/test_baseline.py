@@ -69,3 +69,10 @@ def test_save_creates_parent_dirs(tmp_path):
     assert store.save(1.0, _TS) is True
     price, _ = store.load()
     assert price == 1.0
+
+
+def test_temp_file_keeps_full_name(tmp_path, mocker):
+    """Path.with_suffix cut "sap.de_last_price" to "sap.tmp", so SAP.DE and SAP.F runs shared one temp file."""
+    replace = mocker.patch("eth_monitor.baseline.os.replace")
+    BaselineStore(path=str(tmp_path / "sap.de_last_price"), logger=_LOGGER).save(100.0, _TS)
+    assert replace.call_args.args[0].name == "sap.de_last_price.tmp"

@@ -55,7 +55,6 @@ class TelegramNotifier:
                 data={
                     "chat_id": self._config.telegram_chat_id,
                     "text": message,
-                    "parse_mode": "Markdown",
                 },
                 timeout=_TIMEOUT,
             )
@@ -63,5 +62,8 @@ class TelegramNotifier:
             self._logger.debug("Telegram alert sent successfully.")
             return True
         except requests.exceptions.RequestException as exc:
-            self._logger.error("Failed to send Telegram alert: %s", exc)
+            # requests puts the URL, which holds the bot token, in its error text.
+            self._logger.error(
+                "Failed to send Telegram alert: %s", str(exc).replace(self._config.telegram_bot_token, "***")
+            )
             return False
