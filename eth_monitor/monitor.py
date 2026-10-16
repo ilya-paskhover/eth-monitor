@@ -72,10 +72,10 @@ class PriceMonitor:
 
         self._logger.debug("=== %s monitor finished ===", format_pair(self._config))
 
-    def test(self) -> None:
-        """Send a test Telegram notification."""
+    def test(self) -> bool:
+        """Send a test Telegram notification. Returns True if it was sent."""
         self._warn_missing_config()
-        self._notifier.test()
+        return self._notifier.test()
 
     def _warn_missing_config(self) -> None:
         for var in self._config.missing_vars:
@@ -104,15 +104,8 @@ class PriceMonitor:
     def _format_elapsed_phrase(started_at: datetime, now: datetime) -> str:
         total_minutes = max(0, int((now - started_at).total_seconds() // 60))
         hours, minutes = divmod(total_minutes, 60)
-        if minutes == 0:
-            hour_label = "hour" if hours == 1 else "hours"
-            return f"in last {hours} {hour_label}"
-        if hours == 0:
-            minute_label = "minute" if minutes == 1 else "minutes"
-            return f"in last {minutes} {minute_label}"
-        hour_label = "hour" if hours == 1 else "hours"
-        minute_label = "minute" if minutes == 1 else "minutes"
-        return f"in last {hours} {hour_label} and {minutes} {minute_label}"
+        parts = [f"{n} {unit}{'' if n == 1 else 's'}" for n, unit in ((hours, "hour"), (minutes, "minute")) if n]
+        return f"in last {' and '.join(parts) or '0 hours'}"
 
     @staticmethod
     def _now() -> datetime:
