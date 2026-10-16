@@ -58,7 +58,7 @@ class BaselineStore:
 
         Returns True on success, False on failure (logged internally).
         """
-        tmp_path = self._path.with_suffix(".tmp")
+        tmp_path = self._path.with_name(self._path.name + ".tmp")
         content = f"{price}\n{timestamp.strftime(self._TS_FORMAT)}\n"
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)

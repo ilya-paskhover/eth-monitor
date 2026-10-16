@@ -153,3 +153,21 @@ def test_yahoo_warns_on_currency_mismatch(mocker, caplog):
     with caplog.at_level("WARNING", logger="test_price_fetcher"):
         assert fetcher.fetch() == 180.0
     assert "quoted in EUR" in caplog.text
+
+
+@pytest.mark.parametrize("price", [0, -1, float("nan")])
+def test_non_positive_price_raises_for_every_provider(mocker, price):
+    """A 0 price saved as baseline would make every later run divide by zero."""
+    mocker.patch("requests.get", return_value=_mock_response(mocker, {"ethereum": {"usd": price}}))
+    with pytest.raises(PriceFetchError):
+        _fetcher(max_retries=1).fetch()
+
+
+def test_yahoo_converts_pence_to_pounds(mocker, caplog):
+    """Yahoo quotes London listings in pence ("GBp"); alerts must show pounds."""
+    fetcher = _yahoo(asset="VOD.L", quote_currency="gbp")
+    mocker.patch("requests.get", return_value=_mock_response(mocker, _yahoo_body(122.05, currency="GBp")))
+
+    with caplog.at_level("WARNING", logger="test_price_fetcher"):
+        assert fetcher.fetch() == pytest.approx(1.2205)
+    assert "quoted in" not in caplog.text

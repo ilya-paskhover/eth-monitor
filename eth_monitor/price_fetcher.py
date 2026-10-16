@@ -17,8 +17,7 @@ class PriceFetcher:
     Subclasses implement _request() (one HTTP call) and _parse_price() (extract the price).
     """
 
-    _CONNECT_TIMEOUT = 10
-    _READ_TIMEOUT = 20
+    _TIMEOUT = (10, 20)
 
     def __init__(self, config: Config, logger: logging.Logger) -> None:
         self._config = config
@@ -57,13 +56,13 @@ class PriceFetcher:
             raise PriceFetchError(f"HTTP request failed: {exc}") from exc
 
         try:
-            return self._parse_price(json.loads(response.text))
+            price = self._parse_price(json.loads(response.text))
         except (KeyError, TypeError, ValueError) as exc:
             raise PriceFetchError(f"Price parsing failed. Response body: {response.text!r}") from exc
-
-    @property
-    def _timeout(self) -> tuple[int, int]:
-        return self._CONNECT_TIMEOUT, self._READ_TIMEOUT
+        # 0 means no quote (Finnhub answers unknown tickers with all zeros); `not > 0` also rejects NaN.
+        if not price > 0:
+            raise PriceFetchError(f"No valid price for {self._config.asset!r}: {price}")
+        return price
 
     def _request(self) -> requests.Response:
         raise NotImplementedError
@@ -79,7 +78,7 @@ class CoinGeckoFetcher(PriceFetcher):
         return requests.get(
             self._config.coingecko_api_url,
             params={"ids": self._config.asset, "vs_currencies": self._config.quote_currency},
-            timeout=self._timeout,
+            timeout=self._TIMEOUT,
         )
 
     def _parse_price(self, data: dict) -> float:
@@ -94,15 +93,11 @@ class FinnhubFetcher(PriceFetcher):
             self._config.finnhub_api_url,
             params={"symbol": self._config.asset},
             headers={"X-Finnhub-Token": self._config.finnhub_api_key or ""},
-            timeout=self._timeout,
+            timeout=self._TIMEOUT,
         )
 
     def _parse_price(self, data: dict) -> float:
-        price = float(data["c"])
-        # Finnhub answers unknown tickers with HTTP 200 and all-zero fields.
-        if price <= 0:
-            raise ValueError(f"no quote for symbol {self._config.asset!r}")
-        return price
+        return float(data["c"])
 
 
 class YahooFetcher(PriceFetcher):
@@ -113,24 +108,29 @@ class YahooFetcher(PriceFetcher):
 
     # Yahoo answers requests without a browser-like User-Agent with HTTP 429.
     _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; eth-monitor)"}
+    # Yahoo quotes some listings in the minor unit: London in pence, Johannesburg in cents, Tel Aviv in agorot.
+    _MINOR_UNITS = {"GBp": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
 
     def _request(self) -> requests.Response:
         return requests.get(
             self._config.yahoo_api_url.format(symbol=self._config.asset),
             params={"range": "1d", "interval": "1d"},
             headers=self._HEADERS,
-            timeout=self._timeout,
+            timeout=self._TIMEOUT,
         )
 
     def _parse_price(self, data: dict) -> float:
         meta = data["chart"]["result"][0]["meta"]
+        price = float(meta["regularMarketPrice"])
         currency = meta.get("currency")
+        if currency in self._MINOR_UNITS:
+            currency, price = self._MINOR_UNITS[currency], price / 100
         if currency and currency.lower() != self._config.quote_currency:
             self._logger.warning(
                 "%s is quoted in %s but QUOTE_CURRENCY is %s; alerts will show the wrong currency.",
                 self._config.asset, currency, self._config.quote_currency.upper(),
             )
-        return float(meta["regularMarketPrice"])
+        return price
 
 
 _FETCHERS: dict[str, type[PriceFetcher]] = {

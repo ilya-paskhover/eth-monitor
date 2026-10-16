@@ -191,12 +191,14 @@ eth-monitor/
 ├── tests/                 # Unit tests (pytest)
 ├── main.py                # CLI entry point
 ├── .env.example           # Config template
-└── requirements.txt
+├── requirements.txt
+└── requirements-dev.txt   # Adds pytest for running tests
 ```
 
 ## Running Tests
 
 ```bash
+pip install -r requirements-dev.txt
 python -m pytest tests/ -v
 ```
 
