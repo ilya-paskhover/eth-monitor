@@ -37,6 +37,15 @@ def test_load_returns_none_on_invalid_price(tmp_path):
     assert ts is None
 
 
+@pytest.mark.parametrize("line", ["0.0", "-1", "nan", "inf"])
+def test_load_resets_unusable_price(tmp_path, line):
+    """Such a baseline would make every later run divide by zero or never alert."""
+    path = tmp_path / "baseline"
+    path.write_text(f"{line}\n2026-03-09 12:00:00\n")
+    store = BaselineStore(path=str(path), logger=_LOGGER)
+    assert store.load() == (None, None)
+
+
 def test_load_handles_missing_timestamp_line(tmp_path):
     path = tmp_path / "baseline"
     path.write_text("1234.56\n")
@@ -69,3 +78,10 @@ def test_save_creates_parent_dirs(tmp_path):
     assert store.save(1.0, _TS) is True
     price, _ = store.load()
     assert price == 1.0
+
+
+def test_temp_file_keeps_full_name(tmp_path, mocker):
+    """Path.with_suffix cut "sap.de_last_price" to "sap.tmp", so SAP.DE and SAP.F runs shared one temp file."""
+    replace = mocker.patch("eth_monitor.baseline.os.replace")
+    BaselineStore(path=str(tmp_path / "sap.de_last_price"), logger=_LOGGER).save(100.0, _TS)
+    assert replace.call_args.args[0].name == "sap.de_last_price.tmp"
