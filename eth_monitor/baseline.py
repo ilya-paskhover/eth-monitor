@@ -39,6 +39,9 @@ class BaselineStore:
 
         try:
             price = float(price_line)
+            # 0 would divide by zero in the monitor; NaN and inf would silently stop alerts.
+            if not 0 < price < float("inf"):
+                raise ValueError
         except ValueError:
             self._logger.error("Baseline file has invalid price line: %r. Resetting baseline.", price_line)
             return None, None

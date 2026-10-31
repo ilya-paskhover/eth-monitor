@@ -37,6 +37,15 @@ def test_load_returns_none_on_invalid_price(tmp_path):
     assert ts is None
 
 
+@pytest.mark.parametrize("line", ["0.0", "-1", "nan", "inf"])
+def test_load_resets_unusable_price(tmp_path, line):
+    """Such a baseline would make every later run divide by zero or never alert."""
+    path = tmp_path / "baseline"
+    path.write_text(f"{line}\n2026-03-09 12:00:00\n")
+    store = BaselineStore(path=str(path), logger=_LOGGER)
+    assert store.load() == (None, None)
+
+
 def test_load_handles_missing_timestamp_line(tmp_path):
     path = tmp_path / "baseline"
     path.write_text("1234.56\n")
