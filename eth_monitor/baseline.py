@@ -39,6 +39,9 @@ class BaselineStore:
 
         try:
             price = float(price_line)
+            # 0 would divide by zero in the monitor; NaN and inf would silently stop alerts.
+            if not 0 < price < float("inf"):
+                raise ValueError
         except ValueError:
             self._logger.error("Baseline file has invalid price line: %r. Resetting baseline.", price_line)
             return None, None
@@ -58,7 +61,7 @@ class BaselineStore:
 
         Returns True on success, False on failure (logged internally).
         """
-        tmp_path = self._path.with_suffix(".tmp")
+        tmp_path = self._path.with_name(self._path.name + ".tmp")
         content = f"{price}\n{timestamp.strftime(self._TS_FORMAT)}\n"
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)

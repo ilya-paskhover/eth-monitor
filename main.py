@@ -51,10 +51,8 @@ def main(argv: list[str] | None = None) -> int:
 
     monitor = build_monitor()
     if args.test:
-        monitor.test()
-    else:
-        monitor.run()
-
+        return 0 if monitor.test() else 1
+    monitor.run()
     return 0
 
 

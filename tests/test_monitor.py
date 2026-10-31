@@ -177,3 +177,18 @@ def test_message_uses_currency_sign(_now_mock):
 
     message = monitor._notifier.send.call_args[0][0]
     assert message == "BTC/EUR moved +4.00%: €50,000.00 -> €52,000.00"
+
+
+def test_test_returns_notifier_result():
+    monitor = _make_monitor()
+    monitor._notifier.test = MagicMock(return_value=False)
+    assert monitor.test() is False
+
+
+@patch("eth_monitor.monitor.PriceMonitor._now", return_value=_NOW)
+def test_elapsed_phrase_hours_and_minutes(_now_mock):
+    monitor = _make_monitor(last_price=3000.0, last_ts=datetime(2026, 3, 9, 10, 59, 0), current_price=3100.0)
+    monitor.run()
+
+    message = monitor._notifier.send.call_args[0][0]
+    assert message.endswith("in last 2 hours and 1 minute")

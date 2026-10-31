@@ -36,3 +36,8 @@ def test_idempotent_second_call():
     handler_count = len(logger1.handlers)
     logger2 = setup_logger(name)
     assert len(logger2.handlers) == handler_count
+
+
+def test_does_not_propagate_to_root():
+    """A root handler (added by an early logging.warning) would print every line twice."""
+    assert setup_logger("test_no_propagate").propagate is False

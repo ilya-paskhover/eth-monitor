@@ -14,6 +14,8 @@ def setup_logger(name: str = "eth_monitor", log_file: str | None = None) -> logg
         return logger
 
     logger.setLevel(logging.DEBUG)
+    # Without this, a root handler (added by an early logging.warning) prints every line twice.
+    logger.propagate = False
     fmt = logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
     stderr_handler = logging.StreamHandler(sys.stderr)
